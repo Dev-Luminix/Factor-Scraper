@@ -38,9 +38,13 @@ python -m venv .venv
 .venv\Scripts\activate                 # Windows PowerShell
 # source .venv/bin/activate             # macOS/Linux
 python -m pip install -r requirements.txt
-python -m patchright install chromium
+python -m patchright install chromium   # or skip this and set BROWSER_CHANNEL=chrome to use installed Google Chrome
 python crawl.py --url https://example.com --item-id 1 --board-id 1 --dry-run
 ```
+
+In GitHub Actions the workflow sets `BROWSER_CHANNEL=chrome` and uses the Google Chrome
+that comes preinstalled on the Ubuntu runner, so no browser is downloaded and setup takes
+well under a minute.
 
 `--dry-run` prints the payload and never sends a callback. A normal local run
 requires `CALLBACK_URL` and `CALLBACK_SECRET` environment variables.

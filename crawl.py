@@ -39,6 +39,9 @@ MAX_PAGES = 30
 REQUEST_DELAY = 1.5  # seconds between page loads
 PAGE_TIMEOUT_MS = 45_000
 BFS_MAX_PAGES = 60
+# "chrome" uses the Google Chrome preinstalled on GitHub's Ubuntu runners, so no browser
+# download is needed. Locally the default is Playwright's Chromium (`crawl4ai-setup`).
+BROWSER_CHANNEL = os.environ.get("BROWSER_CHANNEL", "chromium")
 # Stop starting new pages after this long; the workflow itself times out at 30 minutes.
 TIME_BUDGET = int(os.environ.get("CRAWL_TIME_BUDGET", 20 * 60))
 
@@ -110,7 +113,7 @@ async def crawl_site(start_url: str, max_pages: int) -> tuple[str, list[Page]]:
     log(f"Home: {home} | sitemap pages: {len(candidates)}")
 
     html_by_url: dict[str, tuple[str, str]] = {}  # canonical URL -> (URL, HTML)
-    browser = BrowserConfig(headless=True, user_agent=USER_AGENT, verbose=False)
+    browser = BrowserConfig(headless=True, user_agent=USER_AGENT, verbose=False, chrome_channel=BROWSER_CHANNEL)
     async with AsyncWebCrawler(config=browser) as crawler:
         if len(candidates) < 3:
             # No usable sitemap: breadth-first crawl of the site itself (same domain, depth 2).

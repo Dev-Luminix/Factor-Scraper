@@ -1,4 +1,5 @@
 name: Crawl investor website
+run-name: Crawl item ${{ inputs.item_id }}
 
 on:
   workflow_dispatch:
@@ -16,7 +17,7 @@ on:
         required: true
         type: string
 
-# The monday server needs Actions: write to dispatch this workflow.  The crawler
+# The monday server needs Actions: write to dispatch this workflow. The crawler
 # itself needs no repository permissions.
 permissions:
   contents: read
@@ -33,39 +34,37 @@ jobs:
       CRAWL_URL: ${{ inputs.url }}
       ITEM_ID: ${{ inputs.item_id }}
       BOARD_ID: ${{ inputs.board_id }}
-      CALLBACK_URL: ${{ secrets.CALLBACK_URL }}
-      CALLBACK_SECRET: ${{ secrets.CALLBACK_SECRET }}
+      # Use the Google Chrome preinstalled on the runner: no browser download or
+      # apt-get step, which is what made runs slow or hang.
+      BROWSER_CHANNEL: chrome
       PYTHONUTF8: "1"
+      CRAWL4AI_NO_CLOUD_NOTICE: "1"
     steps:
       - name: Check out crawler
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: requirements.txt
 
-      - name: Restore Chromium browser cache
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-crawl4ai-0.9.5
-
       - name: Install crawler dependencies
-        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
-
-      - name: Install Chromium
-        # Crawl4AI 0.9.5 launches Patchright. Its browser installer is the
-        # supported equivalent of the older `crawl4ai-setup` command. The
-        # browser directory restored above makes later runs substantially faster.
-        run: python -m patchright install --with-deps chromium
+        timeout-minutes: 5
+        run: python -m pip install -r requirements.txt
 
       - name: Crawl and report
+        timeout-minutes: 22
+        env:
+          CALLBACK_URL: ${{ secrets.CALLBACK_URL }}
+          CALLBACK_SECRET: ${{ secrets.CALLBACK_SECRET }}
         run: python crawl.py
 
       - name: Report workflow failure
-        if: failure()
-        run: python report_failure.py
+        if: failure() || cancelled()
+        timeout-minutes: 2
+        env:
+          CALLBACK_URL: ${{ secrets.CALLBACK_URL }}
+          CALLBACK_SECRET: ${{ secrets.CALLBACK_SECRET }}
+        run: python3 report_failure.py
