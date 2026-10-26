@@ -1,0 +1,71 @@
+name: Crawl investor website
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Website URL to crawl
+        required: true
+        type: string
+      item_id:
+        description: monday item ID
+        required: true
+        type: string
+      board_id:
+        description: monday board ID
+        required: true
+        type: string
+
+# The monday server needs Actions: write to dispatch this workflow.  The crawler
+# itself needs no repository permissions.
+permissions:
+  contents: read
+
+concurrency:
+  group: investor-crawl-${{ inputs.item_id }}
+  cancel-in-progress: false
+
+jobs:
+  crawl:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CRAWL_URL: ${{ inputs.url }}
+      ITEM_ID: ${{ inputs.item_id }}
+      BOARD_ID: ${{ inputs.board_id }}
+      CALLBACK_URL: ${{ secrets.CALLBACK_URL }}
+      CALLBACK_SECRET: ${{ secrets.CALLBACK_SECRET }}
+      PYTHONUTF8: "1"
+    steps:
+      - name: Check out crawler
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Restore Chromium browser cache
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-crawl4ai-0.9.5
+
+      - name: Install crawler dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
+
+      - name: Install Chromium
+        # Crawl4AI 0.9.5 launches Patchright. Its browser installer is the
+        # supported equivalent of the older `crawl4ai-setup` command. The
+        # browser directory restored above makes later runs substantially faster.
+        run: python -m patchright install --with-deps chromium
+
+      - name: Crawl and report
+        run: python crawl.py
+
+      - name: Report workflow failure
+        if: failure()
+        run: python report_failure.py

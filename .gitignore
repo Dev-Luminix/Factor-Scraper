@@ -1,0 +1,11 @@
+# Python environments and generated files
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Created only after a callback was successfully delivered in a CI run
+.callback-sent
+
+# Local configuration; GitHub Actions uses repository secrets instead
+.env
